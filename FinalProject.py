@@ -27,7 +27,6 @@ TILE_COLORS = {
     2048: (237, 194, 46),
 }
 
-# Set up window
 win = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("2048 Puzzle")
 
@@ -39,64 +38,91 @@ class Game:
         self.spawn_tile()
 
     def spawn_tile(self):
-        empty_tiles = [(r, c) for r in range(GRID_SIZE) for c in range(GRID_SIZE) if self.grid[r][c] == 0]
-        if empty_tiles:
-            r, c = random.choice(empty_tiles)
+        empty = [(r, c) for r in range(GRID_SIZE) for c in range(GRID_SIZE) if self.grid[r][c] == 0]
+        if empty:
+            r, c = random.choice(empty)
             self.grid[r][c] = 4 if random.random() < 0.1 else 2
+
+    def can_move(self):
+        for r in range(GRID_SIZE):
+            for c in range(GRID_SIZE):
+                if self.grid[r][c] == 0:
+                    return True
+                if c < GRID_SIZE - 1 and self.grid[r][c] == self.grid[r][c + 1]:
+                    return True
+                if r < GRID_SIZE - 1 and self.grid[r][c] == self.grid[r + 1][c]:
+                    return True
+        return False
+
+    def merge_line(self, line):
+        new_line = [val for val in line if val != 0]
+        merged = []
+        i = 0
+        while i < len(new_line):
+            if i + 1 < len(new_line) and new_line[i] == new_line[i + 1]:
+                merged_val = new_line[i] * 2
+                self.score += merged_val
+                merged.append(merged_val)
+                i += 2
+            else:
+                merged.append(new_line[i])
+                i += 1
+        merged += [0] * (GRID_SIZE - len(merged))
+        return merged
 
     def move_left(self):
         moved = False
         for r in range(GRID_SIZE):
-            new_row = [val for val in self.grid[r] if val != 0]
-            new_row += [0] * (GRID_SIZE - len(new_row))
-            if new_row != self.grid[r]:
+            original = self.grid[r]
+            merged = self.merge_line(original)
+            if merged != original:
+                self.grid[r] = merged
                 moved = True
-            self.grid[r] = new_row
         if moved:
             self.spawn_tile()
 
     def move_right(self):
         moved = False
         for r in range(GRID_SIZE):
-            new_row = [val for val in self.grid[r] if val != 0]
-            new_row = [0] * (GRID_SIZE - len(new_row)) + new_row
-            if new_row != self.grid[r]:
+            original = list(reversed(self.grid[r]))
+            merged = self.merge_line(original)
+            merged.reverse()
+            if merged != self.grid[r]:
+                self.grid[r] = merged
                 moved = True
-            self.grid[r] = new_row
         if moved:
             self.spawn_tile()
 
     def move_up(self):
         moved = False
         for c in range(GRID_SIZE):
-            new_col = [self.grid[r][c] for r in range(GRID_SIZE) if self.grid[r][c] != 0]
-            new_col += [0] * (GRID_SIZE - len(new_col))
+            col = [self.grid[r][c] for r in range(GRID_SIZE)]
+            merged = self.merge_line(col)
             for r in range(GRID_SIZE):
-                if self.grid[r][c] != new_col[r]:
+                if self.grid[r][c] != merged[r]:
+                    self.grid[r][c] = merged[r]
                     moved = True
-                self.grid[r][c] = new_col[r]
         if moved:
             self.spawn_tile()
 
     def move_down(self):
         moved = False
         for c in range(GRID_SIZE):
-            new_col = [self.grid[r][c] for r in range(GRID_SIZE) if self.grid[r][c] != 0]
-            new_col = [0] * (GRID_SIZE - len(new_col)) + new_col
+            col = [self.grid[r][c] for r in range(GRID_SIZE - 1, -1, -1)]
+            merged = self.merge_line(col)
+            merged.reverse()
             for r in range(GRID_SIZE):
-                if self.grid[r][c] != new_col[r]:
+                if self.grid[r][c] != merged[r]:
+                    self.grid[r][c] = merged[r]
                     moved = True
-                self.grid[r][c] = new_col[r]
         if moved:
             self.spawn_tile()
 
     def draw(self, window):
         window.fill(BG_COLOR)
-        # Draw score bar
         pygame.draw.rect(window, (119, 110, 101), (0, 0, WIDTH, 100))
         score_text = FONT.render(f"Score: {self.score}", True, WHITE)
         window.blit(score_text, (10, 30))
-        # Draw grid
         for r in range(GRID_SIZE):
             for c in range(GRID_SIZE):
                 val = self.grid[r][c]
@@ -106,9 +132,12 @@ class Game:
                 pygame.draw.rect(window, (119, 110, 101), tile_rect, 4)
                 if val != 0:
                     text = FONT.render(str(val), True, (0, 0, 0))
-                    text_rect = text.get_rect(center=(c * TILE_SIZE + TILE_SIZE / 2,
-                                                      r * TILE_SIZE + 100 + TILE_SIZE / 2))
+                    text_rect = text.get_rect(center=(tile_rect.centerx, tile_rect.centery))
                     window.blit(text, text_rect)
+
+        if not self.can_move():
+            over_text = FONT.render("Game Over!", True, (255, 0, 0))
+            window.blit(over_text, over_text.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
 
 def main():
     game = Game()
