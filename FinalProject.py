@@ -46,7 +46,7 @@ class Game:
         self.score = 0
         self.dead_tile_flags = set()
         self.start_time = time.time()
-        self.time_limit = 120
+        self.time_limit = 180
         self.spawn_tile()
         self.spawn_tile()
         self.game_over = False
